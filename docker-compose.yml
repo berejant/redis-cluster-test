@@ -1,0 +1,36 @@
+version: '3.7'
+
+services:
+  redis-master: # Setting up master node
+    image: 'bitnami/redis:latest'
+    ports:
+      - '6379'
+    environment:
+      - REDIS_REPLICATION_MODE=master # Assigning the node as a master
+      - ALLOW_EMPTY_PASSWORD=yes # No password authentication required/ provide password if needed
+
+    command: /opt/bitnami/scripts/redis/run.sh --maxmemory 20mb --maxmemory-policy ${MAXMEMORY_POLICY}
+    volumes:
+      - ./data:/bitnami/redis/data # Redis master data volume
+
+
+  redis-replica: # Setting up slave node
+    image: 'bitnami/redis:latest'
+    ports:
+      - '6379' # No port is exposed
+    depends_on:
+      - redis-master # will only start after the master has booted completely
+    environment:
+      - REDIS_REPLICATION_MODE=slave # Assigning the node as slave
+      - REDIS_MASTER_HOST=redis-master # Host for the slave node is the redis-master node
+      - REDIS_MASTER_PORT_NUMBER=6379 # Port number for local
+      - ALLOW_EMPTY_PASSWORD=yes # No password required to connect to node
+
+  php:
+    build:
+      context: ./php
+    volumes:
+      - ./php:/php
+    depends_on:
+      - redis-master
+      - redis-replica
